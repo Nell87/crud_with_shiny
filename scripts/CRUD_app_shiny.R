@@ -15,7 +15,7 @@ pacman::p_load(rstudioapi,dplyr, ggplot2, lubridate, randomForest, caret,
 current_path = getActiveDocumentContext()$path
 setwd(dirname(current_path))
 setwd("..")
-rm(current_path)
+rm(current_path) 
 
 #### 1.   PREPARING DATA: SQL _____________________________________________ #### 
 source("./scripts/credentials.R")
