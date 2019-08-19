@@ -25,48 +25,41 @@ mydb = dbConnect(MySQL(), user=user, password=password,
 dbListTables(mydb)
 
 recipes = fetch(dbSendQuery(mydb, "select * from recipes"))
-sources = fetch(dbSendQuery(mydb, "select * from sources"))
-ingredients = fetch(dbSendQuery(mydb, "select * from ingredients"))
-
-
-
-# newline<- data.frame(id=4, name="patata", id_sources=2, url="pa", 
-#                                minutes=60, temperature="caliente")
-# 
-# DBI::dbWriteTable(mydb, name="recipes", value=newline, append=TRUE,
-#                   row.names = FALSE)
-
-
 
 #### 2. SHINY _____________________________________________________________ #### 
 
-
 ui <- dashboardPage(
-  dashboardHeader(title = "Playig with the database"),
+  dashboardHeader(title = "Playing with the database"),
   
-  # Sidebar 
   dashboardSidebar(
     sidebarMenu(
       menuItem("Exploring", tabName = "exploring", icon =icon("table")),
-      menuItem("Adding", tabName = "adding", icon =icon("plus-circle"))
+      menuItem("Adding", tabName = "adding", icon =icon("plus-circle"),
+               startExpanded = TRUE,
+               menuSubItem("recipes", tabName = "recipes"),
+               menuSubItem("sources", tabName = "sources"),
+               menuSubItem("ingredients", tabName = "ingredients")
+               )
     )
   ),
       
   dashboardBody(
     tabItems(
       
+      # Exploring 
       tabItem(tabName = "exploring",  
               column(12,
-                  title = "",rHandsontableOutput("exploring"))),
+                  title = "",DT::dataTableOutput("exploring"))),
       
-      tabItem(tabName = "adding",
+      # Inserting recipes      
+      tabItem(tabName = "recipes",
                
-             fluidRow(rHandsontableOutput("adding")),
+             fluidRow(DT::dataTableOutput("adding_recipes_table")),
              fluidRow(
                column(6,
                  textInput(inputId = "recipe_insert_name", label= "Insert name", value=""),
                  selectInput(inputId = "recipe_select_source", label= "Insert source",
-                             choices = c(1,2)),
+                             choices= c(as.list(fetch(dbSendQuery(mydb, "select name from sources")))[[1]])),
                  textInput(inputId = "recipe_insert_url", label= "Insert url", value="")
                  
                ),
@@ -76,7 +69,8 @@ ui <- dashboardPage(
                              choices = c("fria", "caliente")),
                  selectizeInput(inputId = "recipe_select_ingred", 
                                 label= "Insert main ingredients",
-                                choices= c(ingredients$name),selected = NULL, 
+                                choices= c(as.list(fetch(dbSendQuery(mydb, "select name from ingredients")))[[1]]),
+                                selected = NULL, 
                                 multiple = TRUE)
                )
                    
@@ -84,7 +78,7 @@ ui <- dashboardPage(
              
              fluidRow(
                column(6,
-                actionButton("save","save")
+                actionButton(label="save",inputId = "save_recipe")
                ),
                column(6,
                 # Restart the shiny session
@@ -95,10 +89,29 @@ ui <- dashboardPage(
                               placement = "right"))      
                )
              )
+      ),
+      
+      # Inserting sources         
+      tabItem(tabName = "sources",
+              fluidRow(DT::dataTableOutput("adding_sources_table")),
+              fluidRow(
+                 textInput(inputId = "source_insert_name", label= "Insert name", value=""),
+                 actionButton(label="save",inputId="save_source")
+              )
+      ),
+
+      # Inserting ingredients            
+      tabItem(tabName = "ingredients",
+              fluidRow(DT::dataTableOutput("adding_ingredients_table")),
+              fluidRow(
+                 textInput(inputId = "ingredient_insert_name", label= "Insert name", value=""),
+                 actionButton(label="save", inputId = "save_ingredient")
+              )
       )
     )
   )
 )
+
  server <- function(input, output, session) {
  
    #### PREPARING DATA _____________________________________________####     
@@ -113,32 +126,70 @@ ui <- dashboardPage(
    recipes<- reactive({
       recipes = fetch(dbSendQuery(mydb(), "select * from recipes"))
    })
-   
+
    #### OUTPUTS ____________________________________________________________####
    
    # Showing the exploring section
-   output$exploring = renderRHandsontable({
-     rhandsontable(recipes())   
+   output$exploring = renderDataTable({
+     recipes() 
    })
    
-   # Showing the adding section
-   output$adding = renderRHandsontable({
-     rhandsontable(recipes()) 
+   # Showing the adding section for recipes
+   output$adding_recipes_table = renderDataTable({
+     recipes()
    })
-   
-   # Saving the changes with the save button
-   observeEvent(input$save,{
 
+   # Saving the changes with the save_recipes button
+   observeEvent(input$save_recipe,{
+    sources = fetch(dbSendQuery(mydb(), "select * from sources"))
+    id_sources= sources$id[sources$name==input$recipe_select_source]
     newline<- data.frame(name=input$recipe_insert_name,
-                          id_sources=input$recipe_select_source,
+                          id_sources=id_sources,
                           url=input$recipe_insert_url,
                           minutes= input$recipe_insert_time,
                           temperature=input$recipe_select_temp)
     mydb = mydb()
     DBI::dbWriteTable(mydb, name="recipes", value=newline, append=TRUE,
                        row.names = FALSE)
-
+    
    })
+    
+    # Saving the changes with the save_sources button
+    observeEvent(input$save_source,{
+
+       newline<- data.frame(name=input$source_insert_name)
+       mydb = mydb()
+       DBI::dbWriteTable(mydb, name="sources", value=newline, append=TRUE,
+                         row.names = FALSE)
+       
+       updateSelectInput(session, "recipe_select_source",
+                         choices= c(as.list(fetch(dbSendQuery(mydb, "select name from sources")))[[1]]))
+
+       output$adding_sources_table = renderDataTable({
+          sources = fetch(dbSendQuery(mydb(), "select * from sources"))
+
+       })
+   })
+    
+    # Saving the changes with the save_sources button
+    observeEvent(input$save_ingredient,{
+       
+       newline<- data.frame(name=input$ingredient_insert_name)
+       mydb = mydb()
+       DBI::dbWriteTable(mydb, name="ingredients", value=newline, append=TRUE,
+                         row.names = FALSE)
+       
+       updateSelectizeInput(session, "recipe_select_ingred",
+                         choices= c(as.list(fetch(dbSendQuery(mydb, "select name from ingredients")))[[1]]))
+       
+       output$adding_ingredients_table = renderDataTable({
+          ingredients = fetch(dbSendQuery(mydb(), "select * from ingredients"))
+          
+       })
+       
+   
+    })
+    
 
  }
 
