@@ -38,7 +38,8 @@ ui <- dashboardPage(
                startExpanded = TRUE,
                menuSubItem("recipes", tabName = "recipes"),
                menuSubItem("sources", tabName = "sources"),
-               menuSubItem("ingredients", tabName = "ingredients")
+               menuSubItem("ingredients", tabName = "ingredients"),
+               menuSubItem("testing", tabName = "testing")
                )
     )
   ),
@@ -95,7 +96,7 @@ ui <- dashboardPage(
       tabItem(tabName = "sources",
               fluidRow(DT::dataTableOutput("adding_sources_table")),
               fluidRow(
-                 textInput(inputId = "source_insert_name", label= "Insert name", value=""),
+                 textInput(inputId = "source_insert_name", label= "Insert new source", value=""),
                  actionButton(label="save",inputId="save_source")
               )
       ),
@@ -104,10 +105,12 @@ ui <- dashboardPage(
       tabItem(tabName = "ingredients",
               fluidRow(DT::dataTableOutput("adding_ingredients_table")),
               fluidRow(
-                 textInput(inputId = "ingredient_insert_name", label= "Insert name", value=""),
+                 textInput(inputId = "ingredient_insert_name", label= "Insert new ingredient", value=""),
                  actionButton(label="save", inputId = "save_ingredient")
               )
-      )
+      ),
+       tabItem(tabName = "testing", dataTableOutput("testing2")
+       )
     )
   )
 )
@@ -120,7 +123,7 @@ ui <- dashboardPage(
    mydb <- reactive({
      mydb = dbConnect(MySQL(), user=user, password=password, 
                       dbname=dbname, host=host, port=port)
-   })
+   }) 
    
    # RecipeS
    recipes<- reactive({
@@ -141,16 +144,38 @@ ui <- dashboardPage(
 
    # Saving the changes with the save_recipes button
    observeEvent(input$save_recipe,{
-    sources = fetch(dbSendQuery(mydb(), "select * from sources"))
-    id_sources= sources$id[sources$name==input$recipe_select_source]
-    newline<- data.frame(name=input$recipe_insert_name,
-                          id_sources=id_sources,
-                          url=input$recipe_insert_url,
-                          minutes= input$recipe_insert_time,
-                          temperature=input$recipe_select_temp)
-    mydb = mydb()
-    DBI::dbWriteTable(mydb, name="recipes", value=newline, append=TRUE,
-                       row.names = FALSE)
+     
+        # REFRESH DATA
+        mydb = mydb()
+       
+        sources = fetch(dbSendQuery(mydb(), "select * from sources"))
+        ingredients = fetch(dbSendQuery(mydb(), "select * from ingredients"))
+        
+        id_sources= sources$id[sources$name==input$recipe_select_source]
+        id_ingredients<-c()
+        id_ingredients<-append(id_ingredients,ingredients$id[ingredients$name %in% input$recipe_select_ingred])
+        
+        
+        # RECIPES
+        newline_recipes<- data.frame(name=input$recipe_insert_name,
+                              id_sources=id_sources,
+                              url=input$recipe_insert_url,
+                              minutes= input$recipe_insert_time,
+                              temperature=input$recipe_select_temp)
+
+        DBI::dbWriteTable(mydb, name="recipes", value=newline_recipes, 
+                          append=TRUE, row.names = FALSE)
+        
+        # RELACIONAL TABLE
+        recipes = fetch(dbSendQuery(mydb(), "select * from recipes"))
+        id_recipes = id_recipes= recipes$id[recipes$name==input$recipe_insert_name]
+        newline_rel<- data.frame(id_ingredients=id_ingredients)
+        newline_rel<- newline_rel %>% mutate(id_recipes = id_recipes)
+        # newline_rel<- data.frame(id_ingredients=c(3,4),id_recipes=c(1,1))
+
+        DBI::dbWriteTable(mydb, name="rel_ingredients_recipes", value=newline_rel, 
+                          append=TRUE,row.names = FALSE)
+    
     
    })
     
@@ -189,6 +214,18 @@ ui <- dashboardPage(
        
    
     })
+    
+     output$testing2<- renderDataTable({
+       ingredients = fetch(dbSendQuery(mydb(), "select * from ingredients"))
+       
+       id_ingredients2<-c()
+       id_ingredients2<-append(id_ingredients2,ingredients$id[ingredients$name %in% input$recipe_select_ingred])
+       testing<- data.frame(id_ingredients=id_ingredients2)
+       id_recipes=2
+       testing<- testing %>% mutate(id_recipes = id_recipes)
+
+
+     })
     
 
  }
