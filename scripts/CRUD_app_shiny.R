@@ -6,9 +6,8 @@ if(require("pacman")=="FALSE"){
   install.packages("pacman")
 }
 
-pacman::p_load(rstudioapi,dplyr, ggplot2, lubridate, randomForest, caret,
-               rpart,rpart.plot,tidyr, shiny, shinydashboard, rvest, DT,
-               ggthemes,RMySQL,rhandsontable,data.table,shinyjs,DBI, shinyBS)
+pacman::p_load(rstudioapi,dplyr, lubridate, shiny, shinydashboard, DT,
+               RMySQL,shinyBS)
 
 # Setwd (set current wd where is the script, then we move back to the
 # general folder)
@@ -33,29 +32,28 @@ ui <- dashboardPage(
   
   dashboardSidebar(
     sidebarMenu(
-      menuItem("Exploring", tabName = "exploring", icon =icon("table")),
-      menuItem("Adding", tabName = "adding", icon =icon("plus-circle"),
+      menuItem("Creating", tabName = "creating", icon =icon("plus-circle"),
                startExpanded = TRUE,
                menuSubItem("recipes", tabName = "recipes"),
                menuSubItem("sources", tabName = "sources"),
-               menuSubItem("ingredients", tabName = "ingredients"),
-               menuSubItem("testing", tabName = "testing")
-               )
+               menuSubItem("ingredients", tabName = "ingredients")
+               ),
+      menuItem("Reading", tabName = "Reading", icon =icon("table"))   
     )
   ),
       
   dashboardBody(
     tabItems(
       
-      # Exploring 
-      tabItem(tabName = "exploring",  
+      # READING 
+      tabItem(tabName = "Reading",  
               column(12,
-                  title = "",DT::dataTableOutput("exploring"))),
+                  title = "",DT::dataTableOutput("Reading"))),
       
-      # Inserting recipes      
+      # CREATING recipes      
       tabItem(tabName = "recipes",
                
-             fluidRow(DT::dataTableOutput("adding_recipes_table")),
+             fluidRow(DT::dataTableOutput("creating_recipes_table")),
              fluidRow(
                column(6,
                  textInput(inputId = "recipe_insert_name", label= "Insert name", value=""),
@@ -66,7 +64,7 @@ ui <- dashboardPage(
                ),
                column(6,
                  numericInput(inputId = "recipe_insert_time", label="Insert time", value=""),
-                 selectInput(inputId = "recipe_select_temp", label= "Insert source",
+                 selectInput(inputId = "recipe_select_temp", label= "Insert temperature",
                              choices = c("fria", "caliente")),
                  selectizeInput(inputId = "recipe_select_ingred", 
                                 label= "Insert main ingredients",
@@ -92,25 +90,24 @@ ui <- dashboardPage(
              )
       ),
       
-      # Inserting sources         
+      # CREATING sources         
       tabItem(tabName = "sources",
-              fluidRow(DT::dataTableOutput("adding_sources_table")),
+              fluidRow(DT::dataTableOutput("creating_sources_table")),
               fluidRow(
                  textInput(inputId = "source_insert_name", label= "Insert new source", value=""),
                  actionButton(label="save",inputId="save_source")
               )
       ),
 
-      # Inserting ingredients            
+      # Creating ingredients            
       tabItem(tabName = "ingredients",
-              fluidRow(DT::dataTableOutput("adding_ingredients_table")),
+              fluidRow(DT::dataTableOutput("creating_ingredients_table")),
               fluidRow(
                  textInput(inputId = "ingredient_insert_name", label= "Insert new ingredient", value=""),
                  actionButton(label="save", inputId = "save_ingredient")
               )
-      ),
-       tabItem(tabName = "testing", dataTableOutput("testing2")
-       )
+      )
+
     )
   )
 )
@@ -132,13 +129,13 @@ ui <- dashboardPage(
 
    #### OUTPUTS ____________________________________________________________####
    
-   # Showing the exploring section
-   output$exploring = renderDataTable({
+   # Showing the Reading section
+   output$Reading = renderDataTable({
      recipes() 
    })
    
-   # Showing the adding section for recipes
-   output$adding_recipes_table = renderDataTable({
+   # Showing the creating section for recipes
+   output$creating_recipes_table = renderDataTable({
      recipes()
    })
 
@@ -190,7 +187,7 @@ ui <- dashboardPage(
        updateSelectInput(session, "recipe_select_source",
                          choices= c(as.list(fetch(dbSendQuery(mydb, "select name from sources")))[[1]]))
 
-       output$adding_sources_table = renderDataTable({
+       output$creating_sources_table = renderDataTable({
           sources = fetch(dbSendQuery(mydb(), "select * from sources"))
 
        })
@@ -207,25 +204,14 @@ ui <- dashboardPage(
        updateSelectizeInput(session, "recipe_select_ingred",
                          choices= c(as.list(fetch(dbSendQuery(mydb, "select name from ingredients")))[[1]]))
        
-       output$adding_ingredients_table = renderDataTable({
+       output$creating_ingredients_table = renderDataTable({
           ingredients = fetch(dbSendQuery(mydb(), "select * from ingredients"))
           
        })
        
    
     })
-    
-     output$testing2<- renderDataTable({
-       ingredients = fetch(dbSendQuery(mydb(), "select * from ingredients"))
-       
-       id_ingredients2<-c()
-       id_ingredients2<-append(id_ingredients2,ingredients$id[ingredients$name %in% input$recipe_select_ingred])
-       testing<- data.frame(id_ingredients=id_ingredients2)
-       id_recipes=2
-       testing<- testing %>% mutate(id_recipes = id_recipes)
 
-
-     })
     
 
  }
