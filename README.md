@@ -11,7 +11,7 @@ I'm developing a CRUD app (Create, Read, Update and Delete) in shiny, that uses 
   - password
   - host
   - port
-- **Run the CRUD_app_shiny.R**. The credentials.R and the CRUD_app_shiny.R files must be in the same folder. 
+- **Run the CRUD_app_shiny.R code**. The credentials.R and the CRUD_app_shiny.R files must be in the same folder. 
 
 ## ROADMAP
 - Include the update and delete operations
